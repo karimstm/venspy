@@ -1,5 +1,5 @@
 from django.apps import AppConfig
 
 
-class VenapiConfig(AppConfig):
-    name = 'venapi'
+class VenuplConfig(AppConfig):
+    name = 'venupl'
