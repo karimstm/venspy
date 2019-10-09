@@ -6,6 +6,7 @@ class Project(models.Model):
     description = models.CharField(max_length=255)
     creation_date = models.DateTimeField(auto_now=True)
     modification_date = models.DateTimeField(auto_now=True)
+    runs = models.IntegerField()
 
     def __str__(self):
         return self.name
