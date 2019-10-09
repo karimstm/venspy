@@ -23,14 +23,16 @@ class UploadView(APIView):
     parser_class = (FileUploadParser,)
 
     def post(self, request, *args, **kwargs):
-        path = "./media/" + str(Project.objects.all()
-                                [int(request.data['project']) - 1]) + '/' + str(request.data['file'])
+        media = './media/'
+        project_path = media + \
+            str(Project.objects.all()[int(request.data['project']) - 1]) + '/'
+        path = media + str(Project.objects.all()
+                           [int(request.data['project']) - 1]) + '/' + str(request.data['file'])
         file_serializer = FileSerializer(data=request.data)
-        if (os.path.exists('./media/') == False):
-            os.mkdir('./media/')
-        if (os.path.exists("./media/" + str(Project.objects.all()[int(request.data['project']) - 1])) == False):
-            os.mkdir("./media/" + str(Project.objects.all()
-                                      [int(request.data['project']) - 1]) + '/')
+        if (os.path.exists(media) == False):
+            os.mkdir(media)
+        if (os.path.exists(project_path) == False):
+            os.mkdir(project_path)
         if file_serializer.is_valid():
             handle_upload_file(request.data['file'], path)
             file_serializer.save(file=path)
