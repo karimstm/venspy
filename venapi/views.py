@@ -29,9 +29,9 @@ class UploadView(APIView):
         path = media + str(Project.objects.all()
                            [int(request.data['project']) - 1]) + '/' + str(request.data['file'])
         file_serializer = FileSerializer(data=request.data)
-        if (os.path.exists(media) == False):
+        if os.path.exists(media) == False:
             os.mkdir(media)
-        if (os.path.exists(project_path) == False):
+        if os.path.exists(project_path) == False:
             os.mkdir(project_path)
         if file_serializer.is_valid():
             handle_upload_file(request.data['file'], path)
