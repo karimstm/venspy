@@ -27,7 +27,7 @@ also some python dependency
     django: $> pip3 install Django
     rest_framework: $> pip3 install djangorestframework
     background_task: $> pip3 install django-background-tasks
-    django-cors-headers: $> pip install django-cors-headers
+    django-cors-headers: $> pip3 install django-cors-headers
     numpy: $> pip3 install numpy
     pandas: $> pip3 install pandas
  ```
