@@ -1,4 +1,6 @@
-Api:
+# Project Structure
+## Api:
+```
     /:
         GET: All projects
         POST: Create project
@@ -16,20 +18,27 @@ Api:
                 var not in variables : Get list variables of project("pk")
             - option : 
                 generate : Generate new simulation of project("pk")
+```
+## dependency:
+You need to install [vensim](https://vensim.com/download/)
 
-dependency:
+also some python dependency
+```
     django: $> pip3 install Django
     rest_framework: $> pip3 install djangorestframework
     background_task: $> pip3 install django-background-tasks
     django-cors-headers: $> pip install django-cors-headers
-    vensim: https://vensim.com/download/
     numpy: $> pip3 install numpy
     pandas: $> pip3 install pandas
-setup:
+ ```
+## setup:
+```
     $> python manage.py makemigrations coreapi
     $> python manage.py migrate
-
-Run:
+```
+## Run:
+```
     $> python manage.py runserver
-    #the project support tasks queue to use it run 
+    #the project support tasks queue you should run 
     $> python manage.py process_tasks
+```
