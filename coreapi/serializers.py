@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Upload, Project, Result
+from .models import Upload, Project, Result, TypeUpload
 
 
 class FileSerializer(serializers.ModelSerializer):
@@ -17,3 +17,9 @@ class ResultSerializer(serializers.ModelSerializer):
     class Meta:
         model = Result
         fields = ['id', 'dateCreation', 'status']
+
+class TypeUploadSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = TypeUpload
+        fields = '__all__'

@@ -2,12 +2,13 @@ from rest_framework.parsers import FileUploadParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status, viewsets
+from rest_framework import generics
 import os
 import pathlib
 import json
 
-from .serializers import FileSerializer, ProjectSerializer, ResultSerializer
-from .models import Upload, Project, Result
+from .serializers import FileSerializer, ProjectSerializer, ResultSerializer, TypeUploadSerializer
+from .models import Upload, Project, Result, Upload, TypeUpload
 from .library import venpylib as venpy
 from background_task import background
 
@@ -15,6 +16,22 @@ from background_task import background
 class ProjectView(viewsets.ModelViewSet):
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
+
+
+class ModelsView(generics.RetrieveAPIView):
+    serializer_class = FileSerializer
+    queryset = Upload.objects.all()
+
+    def get(self, request, pk):
+        project = Project.objects.get(id=pk)
+        files = Upload.objects.filter(project=project)
+        serializer = FileSerializer(files, many=True)
+        return Response(serializer.data)
+
+
+class TypeUploadView(viewsets.ModelViewSet):
+    queryset = TypeUpload.objects.all()
+    serializer_class = TypeUploadSerializer
 
 
 def handle_upload_file(f, path):
@@ -36,6 +53,7 @@ class UploadView(APIView):
             '/' + str(request.data['file'])
         path2 = media2 + \
             str(request.data['project']) + '/' + str(request.data['file'])
+        request.data['name'] = request.data['file'].name
         file_serializer = FileSerializer(data=request.data)
         if os.path.exists(media) == False:
             os.mkdir(media)
@@ -79,7 +97,7 @@ class UrlFilter:
 @background(schedule=0)
 def addToQueue(pk, id):
     BASE_DIR = F"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}/media/{pk}"
-    model = Upload.objects.get(project=pk, typefile__name="vmpx")
+    model = Upload.objects.get(project=pk, typefile__name="VMPX")
     modelHandler = venpy.load(model.file)
     modelHandler.run()
     latest = len(Result.objects.all())
@@ -142,5 +160,3 @@ class SimulationsViewset(APIView):
         simulationsHandler = SimulationsHandler(pk, request.query_params)
         response = simulationsHandler.execute()
         return Response(response)
-
-
