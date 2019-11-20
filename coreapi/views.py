@@ -97,7 +97,7 @@ class UrlFilter:
 @background(schedule=0)
 def addToQueue(pk, id):
     BASE_DIR = F"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}/media/{pk}"
-    model = Upload.objects.get(project=pk, typefile__name="VMPX")
+    model = Upload.objects.get(project=pk, typefile__name="vpmx")
     modelHandler = venpy.load(model.file)
     modelHandler.run()
     latest = len(Result.objects.all())
