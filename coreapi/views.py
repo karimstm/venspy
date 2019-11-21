@@ -34,17 +34,17 @@ class TypeUploadView(viewsets.ModelViewSet):
     serializer_class = TypeUploadSerializer
 
 
-def handle_upload_file(f, path):
-    with open(path, 'wb+') as destination:
-        for chunk in f.chunks():
-            destination.write(chunk)
-
-
-class UploadView(APIView):
+class UploadView(viewsets.ModelViewSet):
+    queryset = Upload.objects.all()
+    serializer_class = FileSerializer
     parser_class = (FileUploadParser,)
 
-    def post(self, request, *args, **kwargs):
-        BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    def handle_upload_file(self, f, path):
+        with open(path, 'wb+') as destination:
+            for chunk in f.chunks():
+                destination.write(chunk)
+
+    def path_maker(self, request):
         media = './media/'
         media2 = '/media/'
         project_path = media + \
@@ -53,18 +53,35 @@ class UploadView(APIView):
             '/' + str(request.data['file'])
         path2 = media2 + \
             str(request.data['project']) + '/' + str(request.data['file'])
-        request.data['name'] = request.data['file'].name
-        file_serializer = FileSerializer(data=request.data)
         if os.path.exists(media) == False:
             os.mkdir(media)
         if os.path.exists(project_path) == False:
             os.mkdir(project_path)
-        if file_serializer.is_valid():
-            handle_upload_file(request.data['file'], path)
-            file_serializer.save(file=BASE_DIR + path2)
-            return Response(file_serializer.data, status=status.HTTP_201_CREATED)
-        else:
-            return Response(file_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return path, path2
+
+    def perform_destroy(self, instance):
+        os.remove(str(instance.file))
+        instance.delete()
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def perform_create(self, serializer, BASE_DIR, path2):
+        serializer.save(file=BASE_DIR + path2)
+
+    def create(self, request, *args, **kwargs):
+        BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        path, path2 = self.path_maker(request)
+        request.data['name'] = request.data['file'].name
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.handle_upload_file(request.data['file'], path)
+        self.perform_create(serializer, BASE_DIR, path2)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
 
 class UrlFilter:
     def __init__(self, options, params):
@@ -94,6 +111,7 @@ class UrlFilter:
             return self.delegator()
         return 'Error Handling'
 
+
 @background(schedule=0)
 def addToQueue(pk, id):
     BASE_DIR = F"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}/media/{pk}"
@@ -104,7 +122,8 @@ def addToQueue(pk, id):
     jsonFile = F"{BASE_DIR}/result{latest + 1}.json"
     modelHandler.result().to_json(jsonFile)
     # Get errors
-    warning = Get_Warnings(r"C:\Users\mo-_-\AppData\Roaming\Vensim\vensimdll.err")
+    warning = Get_Warnings(
+        r"C:\Users\mo-_-\AppData\Roaming\Vensim\vensimdll.err")
     result = Result.objects.get(id=id)
     result.path = jsonFile
     result.status = True
@@ -112,24 +131,25 @@ def addToQueue(pk, id):
     result.save()
     print(F"simulation of project {pk}, number {id} done.")
 
+
 class SimulationsHandler(UrlFilter):
     def __init__(self, pk, params):
         options = [{
             '_pk': pk
-            },{
+        }, {
             '/': 'default',
             'func': self.getResults
-            }, {
+        }, {
             'id': 'default',
             'func': self.getResult
-            }, {
+        }, {
             'id': 'default',
             'var': 'default',
             'func': self.getResult
-            }, {
+        }, {
             'option': 'generate',
-            'func' : self.generate
-            }]
+            'func': self.generate
+        }]
         super().__init__(options, params)
 
     def getResults(self):
@@ -138,7 +158,8 @@ class SimulationsHandler(UrlFilter):
         return serializer.data
 
     def getResult(self):
-        queryset = Result.objects.get(project__pk=self.params.get('_pk'), pk=self.params.get('id'))
+        queryset = Result.objects.get(
+            project__pk=self.params.get('_pk'), pk=self.params.get('id'))
         if not queryset.status:
             return ({'status': 'in queue'})
         data = pathlib.Path(queryset.path).read_bytes()
@@ -154,10 +175,11 @@ class SimulationsHandler(UrlFilter):
     def generate(self):
         project = Project.objects.get(id=self.params.get('_pk'))
         description = self.params.get('description')
-        result = Result(status=False, project=project, description=description, warning='')
+        result = Result(status=False, project=project,
+                        description=description, warning='')
         result.save()
         addToQueue(self.params.get('_pk'), result.id)
-        return ({'status' : 'in queue', 'id': result.id})
+        return ({'status': 'in queue', 'id': result.id})
 
 
 def Get_Warnings(path):
@@ -168,6 +190,7 @@ def Get_Warnings(path):
             content_file.truncate(0)
             return content
     return 'Warning path either does not exists or it\'s a dirictory'
+
 
 class SimulationsViewset(APIView):
     def get(self, request, pk, format=None):
