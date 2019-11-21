@@ -1,8 +1,12 @@
 from rest_framework import serializers
-from .models import Upload, Project, Result, TypeUpload
+from .models import Upload, Project, Result, TypeUpload, Settings
 
 
 
+class SettingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Settings
+        fields = '__all__';
 
 
 class ProjectSerializer(serializers.ModelSerializer):

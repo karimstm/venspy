@@ -6,9 +6,10 @@ from rest_framework import generics
 import os
 import pathlib
 import json
+import getpass
 
-from .serializers import FileSerializer, ProjectSerializer, ResultSerializer, TypeUploadSerializer
-from .models import Upload, Project, Result, Upload, TypeUpload
+from .serializers import FileSerializer, ProjectSerializer, SettingSerializer, ResultSerializer, TypeUploadSerializer
+from .models import Upload, Project, Result, Upload, TypeUpload, Settings
 from .library import venpylib as venpy
 from background_task import background
 
@@ -104,7 +105,13 @@ def addToQueue(pk, id):
     jsonFile = F"{BASE_DIR}/result{latest + 1}.json"
     modelHandler.result().to_json(jsonFile)
     # Get errors
-    warning = Get_Warnings(r"C:\Users\mo-_-\AppData\Roaming\Vensim\vensimdll.err")
+    try:
+        error_path = Settings.objects.get(name='error_path').path
+    except:
+        print("error_path does not exist in settings")
+        error_path = os.path.join('C:\\Users\\', getpass.getuser(),'AppData\\Roaming\\Vensim\\vensimdll.err')
+    print(error_path)
+    warning = Get_Warnings(error_path)
     result = Result.objects.get(id=id)
     result.path = jsonFile
     result.status = True
@@ -161,7 +168,6 @@ class SimulationsHandler(UrlFilter):
 
 
 def Get_Warnings(path):
-    # "C:\Users\mo-_-\AppData\Roaming\Vensim\vensimdll.err"
     if os.path.isfile(path):
         with open(path, 'r+') as content_file:
             content = content_file.read()
@@ -174,3 +180,8 @@ class SimulationsViewset(APIView):
         simulationsHandler = SimulationsHandler(pk, request.query_params)
         response = simulationsHandler.execute()
         return Response(response)
+
+
+class SettingsView(generics.ListCreateAPIView):
+    serializer_class = SettingSerializer
+    queryset = Settings.objects.all()

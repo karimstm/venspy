@@ -11,4 +11,5 @@ urlpatterns = [
     path('project/<int:pk>/models', views.ModelsView.as_view()),
     path('upload', views.UploadView.as_view()),
     path('simulations/<int:pk>/', views.SimulationsViewset.as_view()),
+    path('settings/', views.SettingsView.as_view())
 ]
