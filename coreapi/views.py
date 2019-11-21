@@ -110,7 +110,6 @@ def addToQueue(pk, id):
     except:
         print("error_path does not exist in settings")
         error_path = os.path.join('C:\\Users\\', getpass.getuser(),'AppData\\Roaming\\Vensim\\vensimdll.err')
-    print(error_path)
     warning = Get_Warnings(error_path)
     result = Result.objects.get(id=id)
     result.path = jsonFile
