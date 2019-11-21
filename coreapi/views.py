@@ -103,9 +103,12 @@ def addToQueue(pk, id):
     latest = len(Result.objects.all())
     jsonFile = F"{BASE_DIR}/result{latest + 1}.json"
     modelHandler.result().to_json(jsonFile)
+    # Get errors
+    warning = Get_Warnings(r"C:\Users\mo-_-\AppData\Roaming\Vensim\vensimdll.err")
     result = Result.objects.get(id=id)
     result.path = jsonFile
     result.status = True
+    result.warning = warning
     result.save()
     print(F"simulation of project {pk}, number {id} done.")
 
@@ -150,10 +153,21 @@ class SimulationsHandler(UrlFilter):
 
     def generate(self):
         project = Project.objects.get(id=self.params.get('_pk'))
-        result = Result(status=False, project=project)
+        description = self.params.get('description')
+        result = Result(status=False, project=project, description=description, warning='')
         result.save()
         addToQueue(self.params.get('_pk'), result.id)
         return ({'status' : 'in queue', 'id': result.id})
+
+
+def Get_Warnings(path):
+    # "C:\Users\mo-_-\AppData\Roaming\Vensim\vensimdll.err"
+    if os.path.isfile(path):
+        with open(path, 'r+') as content_file:
+            content = content_file.read()
+            content_file.truncate(0)
+            return content
+    return 'Warning path either does not exists or it\'s a dirictory'
 
 class SimulationsViewset(APIView):
     def get(self, request, pk, format=None):
