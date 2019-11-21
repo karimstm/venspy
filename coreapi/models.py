@@ -44,3 +44,9 @@ class Result(models.Model):
     status = models.BooleanField(default=False)
     description = models.TextField(null=True, blank=True)
     warning = models.TextField(null=True, blank=True)
+
+
+# Settings table
+class Settings(models.Model):
+    name = models.CharField(max_length=100)
+    path = models.TextField()
