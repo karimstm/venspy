@@ -8,7 +8,7 @@ import pathlib
 import json
 import getpass
 import win32com.client
-
+from rest_framework import filters
 from .serializers import FileSerializer, ProjectSerializer, SettingSerializer, ResultSerializer, TypeUploadSerializer
 from .models import Upload, Project, Result, Upload, TypeUpload, Settings
 from .library import venpylib as venpy
@@ -163,7 +163,8 @@ class SimulationsHandler(UrlFilter):
         super().__init__(options, params)
 
     def getResults(self):
-        queryset = Result.objects.filter(project__pk=self.params.get('_pk'))
+        queryset = Result.objects.filter(project__pk=self.params.get('_pk'))\
+                            .order_by('-dateCreation')
         serializer = ResultSerializer(queryset, many=True)
         return serializer.data
 
@@ -184,6 +185,8 @@ class SimulationsHandler(UrlFilter):
 
     def generate(self):
         project = Project.objects.get(id=self.params.get('_pk'))
+        project.runs = project.runs + 1;
+        project.save()
         description = self.params.get('description')
         result = Result(status=False, project=project,
                         description=description, warning='')
@@ -199,10 +202,11 @@ def Get_Warnings(path):
             content = content_file.read()
             content_file.truncate(0)
             return content
-    return 'Warning path either does not exists or it\'s a dirictory'
+    return 'Warning path either does not exists or it\'s a directory'
 
 
 class SimulationsViewset(APIView):
+
     def get(self, request, pk, format=None):
         simulationsHandler = SimulationsHandler(pk, request.query_params)
         response = simulationsHandler.execute()
