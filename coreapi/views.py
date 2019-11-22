@@ -7,6 +7,7 @@ import os
 import pathlib
 import json
 import getpass
+import win32com.client
 
 from .serializers import FileSerializer, ProjectSerializer, SettingSerializer, ResultSerializer, TypeUploadSerializer
 from .models import Upload, Project, Result, Upload, TypeUpload, Settings
@@ -127,13 +128,17 @@ def addToQueue(pk, id):
         error_path = Settings.objects.get(name='error_path').path
     except:
         print("error_path does not exist in settings")
-        error_path = os.path.join('C:\\Users\\', getpass.getuser(),'AppData\\Roaming\\Vensim\\vensimdll.err')
+        error_path = os.path.join('C:\\Users\\', getpass.getuser(
+        ), 'AppData\\Roaming\\Vensim\\vensimdll.err')
     warning = Get_Warnings(error_path)
     result = Result.objects.get(id=id)
     result.path = jsonFile
     result.status = True
     result.warning = warning
     result.save()
+    xl = win32com.client.Dispatch("Excel.Application")
+    xl.DisplayAlerts = False
+    xl.Quit()
     print(F"simulation of project {pk}, number {id} done.")
 
 
@@ -188,6 +193,7 @@ class SimulationsHandler(UrlFilter):
 
 
 def Get_Warnings(path):
+    print(path)
     if os.path.isfile(path):
         with open(path, 'r+') as content_file:
             content = content_file.read()
