@@ -65,7 +65,8 @@ class UploadView(viewsets.ModelViewSet):
         return path, path2
 
     def perform_destroy(self, instance):
-        os.remove(str(instance.file))
+        if os.path.exists(str(instance.file)):
+            os.remove(str(instance.file))
         instance.delete()
 
     def destroy(self, request, *args, **kwargs):
