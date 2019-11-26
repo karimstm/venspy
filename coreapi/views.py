@@ -13,6 +13,7 @@ from .serializers import FileSerializer, ProjectSerializer, SettingSerializer, R
 from .models import Upload, Project, Result, Upload, TypeUpload, Settings
 from .library import venpylib as venpy
 from background_task import background
+from django_filters.rest_framework import DjangoFilterBackend
 
 
 class ProjectView(viewsets.ModelViewSet):
@@ -39,6 +40,8 @@ class TypeUploadView(viewsets.ModelViewSet):
 class UploadView(viewsets.ModelViewSet):
     queryset = Upload.objects.all()
     serializer_class = FileSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['typefile']
     parser_class = (FileUploadParser,)
 
     def handle_upload_file(self, f, path):
@@ -164,7 +167,7 @@ class SimulationsHandler(UrlFilter):
 
     def getResults(self):
         queryset = Result.objects.filter(project__pk=self.params.get('_pk'))\
-                            .order_by('-dateCreation')
+            .order_by('-dateCreation')
         serializer = ResultSerializer(queryset, many=True)
         return serializer.data
 
@@ -185,7 +188,7 @@ class SimulationsHandler(UrlFilter):
 
     def generate(self):
         project = Project.objects.get(id=self.params.get('_pk'))
-        project.runs = project.runs + 1;
+        project.runs = project.runs + 1
         project.save()
         description = self.params.get('description')
         result = Result(status=False, project=project,
