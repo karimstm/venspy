@@ -14,6 +14,8 @@ from .models import Upload, Project, Result, Upload, TypeUpload, Settings
 from .library import venpylib as venpy
 from background_task import background
 from django_filters.rest_framework import DjangoFilterBackend
+from datetime import datetime
+import ntpath
 
 
 class ProjectView(viewsets.ModelViewSet):
@@ -80,13 +82,30 @@ class UploadView(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         path, path2 = self.path_maker(request)
-        request.data['name'] = request.data['file'].name
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.handle_upload_file(request.data['file'], path)
-        self.perform_create(serializer, BASE_DIR, path2)
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        print(request.data)
+        try:
+            project_instance = Project.objects.get(id=request.data['project'])
+            typefile_instance = TypeUpload.objects.get(
+                id=request.data['typefile'])
+        except:
+            return Response(data={"msg": "missing_data"}, status=status.HTTP_400_BAD_REQUEST)
+        if Upload.objects.filter(project=Project.objects.get(id=request.data['project']), name=request.data['file'].name).count() == 0:
+            request.data['name'] = request.data['file'].name
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            self.handle_upload_file(request.data['file'], path)
+            self.perform_create(serializer, BASE_DIR, path2)
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        else:
+            file_instance = Upload.objects.get(
+                project=project_instance, name=request.data['file'].name)
+            file_instance.dateCreation = datetime.now()
+            file_instance.file = BASE_DIR + path2
+            file_instance.name = ntpath.basename(request.data['file'].name)
+            file_instance.typefile = typefile_instance
+            file_instance.save()
+            return Response(data={"msg": "File Updated"}, status=status.HTTP_201_CREATED)
 
     def perform_update(self, serializer, BASE_DIR, path2):
         serializer.save(file=BASE_DIR + path2)
