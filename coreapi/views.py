@@ -40,9 +40,9 @@ class TypeUploadView(viewsets.ModelViewSet):
 class UploadView(viewsets.ModelViewSet):
     queryset = Upload.objects.all()
     serializer_class = FileSerializer
+    parser_class = (FileUploadParser,)
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['typefile']
-    parser_class = (FileUploadParser,)
 
     def handle_upload_file(self, f, path):
         with open(path, 'wb+') as destination:
@@ -87,6 +87,28 @@ class UploadView(viewsets.ModelViewSet):
         self.perform_create(serializer, BASE_DIR, path2)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def perform_update(self, serializer, BASE_DIR, path2):
+        serializer.save(file=BASE_DIR + path2)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        path, path2 = self.path_maker(request)
+        request.data['name'] = request.data['file'].name
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.handle_upload_file(request.data['file'], path)
+        self.perform_update(serializer, BASE_DIR, path2)
+
+        if getattr(instance, '_prefetched_objects_cache', None):
+            # If 'prefetch_related' has been applied to a queryset, we need to
+            # forcibly invalidate the prefetch cache on the instance.
+            instance._prefetched_objects_cache = {}
+
+        return Response(serializer.data)
 
 
 class UrlFilter:
