@@ -6,6 +6,7 @@ TYPECHOICES = [
     ('mdl', 'MDL')
 ]
 
+
 class Project(models.Model):
     name = models.CharField(max_length=50)
     description = models.CharField(max_length=255)
@@ -18,7 +19,8 @@ class Project(models.Model):
 
 
 class TypeUpload(models.Model):
-    name = models.CharField(max_length=50, default='model', choices=TYPECHOICES)
+    name = models.CharField(max_length=50, default='model',
+                            choices=TYPECHOICES, unique=True)
 
     def __str__(self):
         return self.name

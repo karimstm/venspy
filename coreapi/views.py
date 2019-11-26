@@ -8,11 +8,12 @@ import pathlib
 import json
 import getpass
 import win32com.client
-
+from rest_framework import filters
 from .serializers import FileSerializer, ProjectSerializer, SettingSerializer, ResultSerializer, TypeUploadSerializer
 from .models import Upload, Project, Result, Upload, TypeUpload, Settings
 from .library import venpylib as venpy
 from background_task import background
+from django_filters.rest_framework import DjangoFilterBackend
 
 
 class ProjectView(viewsets.ModelViewSet):
@@ -39,6 +40,8 @@ class TypeUploadView(viewsets.ModelViewSet):
 class UploadView(viewsets.ModelViewSet):
     queryset = Upload.objects.all()
     serializer_class = FileSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['typefile']
     parser_class = (FileUploadParser,)
 
     def handle_upload_file(self, f, path):
@@ -62,7 +65,8 @@ class UploadView(viewsets.ModelViewSet):
         return path, path2
 
     def perform_destroy(self, instance):
-        os.remove(str(instance.file))
+        if os.path.exists(str(instance.file)):
+            os.remove(str(instance.file))
         instance.delete()
 
     def destroy(self, request, *args, **kwargs):
@@ -163,7 +167,8 @@ class SimulationsHandler(UrlFilter):
         super().__init__(options, params)
 
     def getResults(self):
-        queryset = Result.objects.filter(project__pk=self.params.get('_pk'))
+        queryset = Result.objects.filter(project__pk=self.params.get('_pk'))\
+            .order_by('-dateCreation')
         serializer = ResultSerializer(queryset, many=True)
         return serializer.data
 
@@ -184,6 +189,8 @@ class SimulationsHandler(UrlFilter):
 
     def generate(self):
         project = Project.objects.get(id=self.params.get('_pk'))
+        project.runs = project.runs + 1
+        project.save()
         description = self.params.get('description')
         result = Result(status=False, project=project,
                         description=description, warning='')
@@ -199,10 +206,11 @@ def Get_Warnings(path):
             content = content_file.read()
             content_file.truncate(0)
             return content
-    return 'Warning path either does not exists or it\'s a dirictory'
+    return 'Warning path either does not exists or it\'s a directory'
 
 
 class SimulationsViewset(APIView):
+
     def get(self, request, pk, format=None):
         simulationsHandler = SimulationsHandler(pk, request.query_params)
         response = simulationsHandler.execute()

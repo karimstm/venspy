@@ -18,7 +18,7 @@ class ResultSerializer(serializers.ModelSerializer):
     class Meta:
         model = Result
         fields = ['id', 'dateCreation', 'status', 'description', 'warning']
-
+        
 class TypeUploadSerializer(serializers.ModelSerializer):
     
     class Meta:
