@@ -1,5 +1,6 @@
 from .serializers import FileSerializer, ProjectSerializer, SettingSerializer, ResultSerializer, TypeUploadSerializer
 from .models import Upload, Project, Result, Upload, TypeUpload, Settings
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.parsers import FileUploadParser
 from rest_framework.response import Response
 from rest_framework import status, viewsets
@@ -8,12 +9,14 @@ from rest_framework import generics
 from rest_framework import filters
 #from .SocketHandler import clients
 from .Simulator import Simulator
+from datetime import datetime
 from pathlib import Path
 import win32com.client
 import getpass
+import ntpath
 import json
-import os
 import time
+import os
 
 def runSimulation(pk, id, callBack):
     BASE_DIR = F"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}/media/{pk}"
@@ -66,6 +69,8 @@ class UploadView(viewsets.ModelViewSet):
     queryset = Upload.objects.all()
     serializer_class = FileSerializer
     parser_class = (FileUploadParser,)
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['typefile']
 
     def handle_upload_file(self, f, path):
         with open(path, 'wb+') as destination:
@@ -88,7 +93,8 @@ class UploadView(viewsets.ModelViewSet):
         return path, path2
 
     def perform_destroy(self, instance):
-        os.remove(str(instance.file))
+        if os.path.exists(str(instance.file)):
+            os.remove(str(instance.file))
         instance.delete()
 
     def destroy(self, request, *args, **kwargs):
@@ -102,13 +108,52 @@ class UploadView(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         path, path2 = self.path_maker(request)
+        print(request.data)
+        try:
+            project_instance = Project.objects.get(id=request.data['project'])
+            typefile_instance = TypeUpload.objects.get(
+                id=request.data['typefile'])
+        except:
+            return Response(data={"msg": "missing_data"}, status=status.HTTP_400_BAD_REQUEST)
+        if Upload.objects.filter(project=Project.objects.get(id=request.data['project']), name=request.data['file'].name).count() == 0:
+            request.data['name'] = request.data['file'].name
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            self.handle_upload_file(request.data['file'], path)
+            self.perform_create(serializer, BASE_DIR, path2)
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        else:
+            file_instance = Upload.objects.get(
+                project=project_instance, name=request.data['file'].name)
+            file_instance.dateCreation = datetime.now()
+            file_instance.file = BASE_DIR + path2
+            file_instance.name = ntpath.basename(request.data['file'].name)
+            file_instance.typefile = typefile_instance
+            file_instance.save()
+            return Response(data={"msg": "File Updated"}, status=status.HTTP_201_CREATED)
+
+    def perform_update(self, serializer, BASE_DIR, path2):
+        serializer.save(file=BASE_DIR + path2)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        path, path2 = self.path_maker(request)
         request.data['name'] = request.data['file'].name
-        serializer = self.get_serializer(data=request.data)
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.handle_upload_file(request.data['file'], path)
-        self.perform_create(serializer, BASE_DIR, path2)
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        self.perform_update(serializer, BASE_DIR, path2)
+
+        if getattr(instance, '_prefetched_objects_cache', None):
+            # If 'prefetch_related' has been applied to a queryset, we need to
+            # forcibly invalidate the prefetch cache on the instance.
+            instance._prefetched_objects_cache = {}
+
+        return Response(serializer.data)
 
 
 class UrlFilter:
@@ -163,7 +208,7 @@ class SimulationsHandler(UrlFilter):
 
     def getResults(self, callBack):
         queryset = Result.objects.filter(project__pk=self.params.get('_pk'))\
-                            .order_by('-dateCreation')
+            .order_by('-dateCreation')
         serializer = ResultSerializer(queryset, many=True)
         return serializer.data
 
