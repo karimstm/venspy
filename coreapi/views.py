@@ -217,15 +217,17 @@ class SimulationsHandler(UrlFilter):
             project__pk=self.params.get('_pk'), pk=self.params.get('id'))
         if not queryset.status:
             return ({'status': 'in queue'})
-        data = pathlib.Path(queryset.path).read_bytes()
+        data = Path(queryset.path).read_bytes()
         data = json.loads(data)
         if not self.params.get('var'):
             return data
-        if self.params.get('var') not in data.keys():
-            return list(data.keys())
-        if self.params.get('var') in data.keys():
-            return data[self.params.get('var')]
-        return data
+        for var in self.params.get('var').split(','):
+            if var not in data.keys():
+                return list(data.keys())
+        results = {}
+        for var in self.params.get('var').split(','):
+            results[var] = data[var]
+        return results
 
     def generate(self, callBack):
         project = Project.objects.get(id=self.params.get('_pk'))
@@ -233,7 +235,7 @@ class SimulationsHandler(UrlFilter):
         project.save()
         description = self.params.get('description')
         try:
-            model = Upload.objects.get(project=pk, typefile__name="mdl")
+            Upload.objects.get(project=self.params.get('_pk'), typefile__name="mdl")
         except:
             status = {"status": "failed", "message": F"you must load model"}
             if callBack:
