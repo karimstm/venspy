@@ -1,4 +1,3 @@
-from .views import SimulationsHandler
 import threading
 
 class ThreadQueue():
@@ -15,12 +14,15 @@ class ThreadQueue():
                     self.workers[i] = False
                 if not self.workers[i]:
                     task = self.threadQueue.pop(0)
-                    simulationsHandler = SimulationsHandler(task['data']['pk'], task['data'])
-                    self.workers[i] = threading.Thread(target=simulationsHandler.execute, args=(task['callBack'], ))
+                    self.workers[i] = threading.Thread(target=task["func"], args=(task['params'], task["callBack"]))
                     self.workers[i].start()
                     break
 
-    def addTask(self, task):
-        self.threadQueue.append(task)
+    def addTask(self, func, params, callBack=None):
+        self.threadQueue.append({
+            "func": func,
+            "params": params,
+            "callBack": callBack
+        })
         if len(self.threadQueue) == 1:
             threading.Thread(target=self.monitor, args=[]).start()

@@ -1,8 +1,8 @@
 from channels.generic.websocket import WebsocketConsumer
-from .ThreadQueue import ThreadQueue
+from .static import threadHandler
+from .views import SimulationsHandler
 import json
 
-threadHandler = None
 clients = {}
 
 class SocketHandler(WebsocketConsumer):
@@ -16,13 +16,8 @@ class SocketHandler(WebsocketConsumer):
 
     def receive(self, text_data):
         global threadHandler
-        if not threadHandler:
-            threadHandler = ThreadQueue(1)
         text_data_json = json.loads(text_data)
-        threadHandler.addTask({
-            "data":text_data_json, 
-            "callBack": {
+        SimulationsHandler(text_data_json).execute({
                 "clients": clients, 
                 "user": self.scope['url_route']['kwargs']['room_name']
-                }
-            })
+                })
