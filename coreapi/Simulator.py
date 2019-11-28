@@ -1,13 +1,17 @@
 from pathlib import Path
+import win32com.client
+from threading import Timer
 import subprocess
-import os
+import psutil
 import json
+import os
 
 class Simulator():
 
     def __init__(self, vensim, model, runname="run", handlerFile="vinsimHandler"):
         self.__script = F"""
 :SCREEN Simulator
+COMMAND,"",0,0,0,0,,,SPECIAL>NOINTERACTION|0
 COMMAND,"",0,0,0,0,,,SPECIAL>LOADMODEL|{model}
 COMMAND,"",0,0,0,0,,,SIMULATE>RUNNAME|{runname}
 COMMAND,"",0,0,0,0,,,MENU>RUN|O
@@ -40,8 +44,13 @@ COMMAND,"",0,0,0,0,,,MENU>EXIT
         Path(F"{self.handlerFile}.VCD").write_text(self.__script)
         command = F"{self.vensim} {self.handlerFile}.VCD"
         subprocess.Popen(command, shell=True, stdout=subprocess.PIPE).wait()
+        #Timer(40, proc.kill)
 
     def clear(self):    
         os.remove(F"{self.runname}.dat")
         os.remove(F"{self.runname}.vdfx")
         os.remove(F"{self.handlerFile}.VCD")
+        PROCNAME = "EXCEL.EXE"
+        for proc in psutil.process_iter():
+            if proc.name() == PROCNAME:
+                proc.kill()
