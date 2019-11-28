@@ -1,22 +1,48 @@
-from rest_framework.parsers import FileUploadParser
-from rest_framework.response import Response
-from rest_framework.views import APIView
-from rest_framework import status, viewsets
-from rest_framework import generics
-import os
-import pathlib
-import json
-import getpass
-import win32com.client
-from rest_framework import filters
 from .serializers import FileSerializer, ProjectSerializer, SettingSerializer, ResultSerializer, TypeUploadSerializer
 from .models import Upload, Project, Result, Upload, TypeUpload, Settings
-from .library import venpylib as venpy
-from background_task import background
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.parsers import FileUploadParser
+from rest_framework.response import Response
+from rest_framework import status, viewsets
+from rest_framework.views import APIView
+from rest_framework import generics
+from rest_framework import filters
+#from .SocketHandler import clients
+from .Simulator import Simulator
 from datetime import datetime
+from pathlib import Path
+import win32com.client
+import getpass
 import ntpath
+import json
+import time
+import os
 
+def runSimulation(pk, id, callBack):
+    BASE_DIR = F"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}/media/{pk}"
+    model = Upload.objects.get(project=pk, typefile__name="mdl")
+    simulator = Simulator('"C:/Program Files/Vensim/vendss64.exe"', model, runname=F"{BASE_DIR}/{id}", handlerFile=F"{BASE_DIR}/{id}")
+    jsonFile = F"{BASE_DIR}/result{id}.json"
+    Path(jsonFile).write_text(json.dumps(simulator.results))
+    # Get errors
+    try:
+        error_path = Settings.objects.get(name='error_path').path
+    except:
+        print("error_path does not exist in settings")
+        error_path = os.path.join('C:\\Users\\', getpass.getuser(
+        ), 'AppData\\Roaming\\Vensim\\vensimdll.err')
+    warning = Get_Warnings(error_path)
+    result = Result.objects.get(id=id)
+    result.path = jsonFile
+    result.status = True
+    result.warning = warning
+    result.save()
+    #xl = win32com.client.Dispatch("Excel.Application")
+    #xl.DisplayAlerts = False
+    #xl.Quit()
+    if callBack:
+        callBack["clients"][callBack["user"]](json.dumps({"pk": pk, 'id': id, "status": "success", "message": F"simulation {id} complete"}))
+    exit(0)
 
 class ProjectView(viewsets.ModelViewSet):
     queryset = Project.objects.all()
@@ -153,38 +179,10 @@ class UrlFilter:
             if self.__check(option):
                 self.delegator = option['func']
 
-    def execute(self):
+    def execute(self, callBack=None):
         if self.delegator:
-            return self.delegator()
+            return self.delegator(callBack)
         return 'Error Handling'
-
-
-@background(schedule=0)
-def addToQueue(pk, id):
-    BASE_DIR = F"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}/media/{pk}"
-    model = Upload.objects.get(project=pk, typefile__name="vpmx")
-    modelHandler = venpy.load(model.file)
-    modelHandler.run()
-    latest = len(Result.objects.all())
-    jsonFile = F"{BASE_DIR}/result{latest + 1}.json"
-    modelHandler.result().to_json(jsonFile)
-    # Get errors
-    try:
-        error_path = Settings.objects.get(name='error_path').path
-    except:
-        print("error_path does not exist in settings")
-        error_path = os.path.join('C:\\Users\\', getpass.getuser(
-        ), 'AppData\\Roaming\\Vensim\\vensimdll.err')
-    warning = Get_Warnings(error_path)
-    result = Result.objects.get(id=id)
-    result.path = jsonFile
-    result.status = True
-    result.warning = warning
-    result.save()
-    xl = win32com.client.Dispatch("Excel.Application")
-    xl.DisplayAlerts = False
-    xl.Quit()
-    print(F"simulation of project {pk}, number {id} done.")
 
 
 class SimulationsHandler(UrlFilter):
@@ -203,40 +201,50 @@ class SimulationsHandler(UrlFilter):
             'func': self.getResult
         }, {
             'option': 'generate',
+            'description': 'default',
             'func': self.generate
         }]
         super().__init__(options, params)
 
-    def getResults(self):
+    def getResults(self, callBack):
         queryset = Result.objects.filter(project__pk=self.params.get('_pk'))\
             .order_by('-dateCreation')
         serializer = ResultSerializer(queryset, many=True)
         return serializer.data
 
-    def getResult(self):
+    def getResult(self, callBack):
         queryset = Result.objects.get(
             project__pk=self.params.get('_pk'), pk=self.params.get('id'))
         if not queryset.status:
             return ({'status': 'in queue'})
-        data = pathlib.Path(queryset.path).read_bytes()
+        data = Path(queryset.path).read_bytes()
         data = json.loads(data)
         if not self.params.get('var'):
             return data
-        if self.params.get('var') not in data.keys():
-            return list(data.keys())
-        if self.params.get('var') in data.keys():
-            return data[self.params.get('var')]
-        return data
+        for var in self.params.get('var').split(','):
+            if var not in data.keys():
+                return list(data.keys())
+        results = {}
+        for var in self.params.get('var').split(','):
+            results[var] = data[var]
+        return results
 
-    def generate(self):
+    def generate(self, callBack):
         project = Project.objects.get(id=self.params.get('_pk'))
         project.runs = project.runs + 1
         project.save()
         description = self.params.get('description')
+        try:
+            Upload.objects.get(project=self.params.get('_pk'), typefile__name="mdl")
+        except:
+            status = {"status": "failed", "message": F"you must load model"}
+            if callBack:
+                callBack["clients"][callBack["user"]](json.dumps(status))
+            return status
         result = Result(status=False, project=project,
                         description=description, warning='')
         result.save()
-        addToQueue(self.params.get('_pk'), result.id)
+        runSimulation(self.params.get('_pk'), result.id, callBack)
         return ({'status': 'in queue', 'id': result.id})
 
 
