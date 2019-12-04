@@ -223,7 +223,7 @@ class SimulationsHandler(UrlFilter):
             return status
         result = Result.objects.create(status=False, project=project, description=description, warning='')
         BASE_DIR = F"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}/media/{pk}"
-        simulator = Simulator('"C:/Program Files/Vensim/vendss64.exe"', model[0], runname=F"{BASE_DIR}/{result.id}", handlerFile=F"{BASE_DIR}/{result.id}")
+        simulator = Simulator('"D:/Vensim/vendss64.exe"', model[0], runname=F"{BASE_DIR}/{result.id}", handlerFile=F"{BASE_DIR}/{result.id}")
         jsonFile = F"{BASE_DIR}/result{result.id}.json"
         Path(jsonFile).write_text(json.dumps(simulator.results))
         try:
