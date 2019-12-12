@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 
 TYPECHOICES = [
     ('vpmx', 'VPMX'),
@@ -41,12 +42,17 @@ class Upload(models.Model):
 
 class Result(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     path = models.CharField(max_length=100, null=True, blank=True)
     dateCreation = models.DateTimeField(auto_now=True)
     status = models.BooleanField(default=False)
     description = models.TextField(null=True, blank=True)
     warning = models.TextField(null=True, blank=True)
 
+
+class Entity(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    users = models.ManyToManyField(User)
 
 # Settings table
 class Settings(models.Model):
