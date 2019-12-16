@@ -7,7 +7,7 @@ from rest_framework import status, viewsets
 from rest_framework.views import APIView
 from rest_framework import generics
 from rest_framework import filters
-#from .SocketHandler import clients
+# from .SocketHandler import clients
 from .static import threadHandler
 from .Simulator import Simulator
 from datetime import datetime
@@ -18,6 +18,8 @@ import ntpath
 import json
 import time
 import os
+from coreapi.parseTop.parseMonkey import result_to_json, parser_mdl_top, get_data, put_data
+
 
 class ProjectView(viewsets.ModelViewSet):
     queryset = Project.objects.all()
@@ -33,6 +35,33 @@ class ModelsView(generics.RetrieveAPIView):
         files = Upload.objects.filter(project=project)
         serializer = FileSerializer(files, many=True)
         return Response(serializer.data)
+
+
+class MdlTopJsonView(generics.RetrieveAPIView):
+    serializer_class = FileSerializer
+    queryset = Upload.objects.all()
+
+    def get(self, request, pk):
+        with open('./media/' + str(pk) + '/mdl_parsed_top.json', 'r') as file:
+            data = file.read()
+        json_obj = json.loads(data)
+        if 'name' in request.data:
+            obj = []
+            name = request.data['name']
+            if isinstance(name, list):
+                for ob_js in json_obj:
+                    for re in name:
+                        if ob_js['name'] == re:
+                            obj.append(ob_js)
+            elif isinstance(name, str):
+                for ob_js in json_obj:
+                    if ob_js['name'] == name:
+                        return Response(data=ob_js)
+            else:
+                return Reponse(data={"msg": "wrong data type"})
+            return Response(data=obj)
+        else:
+            return Response(data=json.loads(data))
 
 
 class TypeUploadView(viewsets.ModelViewSet):
@@ -83,7 +112,6 @@ class UploadView(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         path, path2 = self.path_maker(request)
-        print(request.data)
         try:
             project_instance = Project.objects.get(id=request.data['project'])
             typefile_instance = TypeUpload.objects.get(
@@ -95,8 +123,15 @@ class UploadView(viewsets.ModelViewSet):
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             self.handle_upload_file(request.data['file'], path)
+            filename, file_extension = os.path.splitext(path)
+            if file_extension[1:].lower() == 'mdl':
+                absolute_path = os.path.dirname(os.path.abspath(path))
+                json_format = result_to_json(
+                    parser_mdl_top(data=get_data(path)))
+                put_data(absolute_path, json_format)
             self.perform_create(serializer, BASE_DIR, path2)
             headers = self.get_success_headers(serializer.data)
+
             return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
         else:
             file_instance = Upload.objects.get(
@@ -105,6 +140,12 @@ class UploadView(viewsets.ModelViewSet):
             file_instance.file = BASE_DIR + path2
             file_instance.name = ntpath.basename(request.data['file'].name)
             file_instance.typefile = typefile_instance
+            filename, file_extension = os.path.splitext(path)
+            if file_extension[1:].lower() == 'mdl':
+                absolute_path = os.path.dirname(os.path.abspath(path))
+                json_format = result_to_json(
+                    parser_mdl_top(data=get_data(path)))
+                put_data(absolute_path, json_format)
             file_instance.save()
             return Response(data={"msg": "File Updated"}, status=status.HTTP_201_CREATED)
 
@@ -134,8 +175,8 @@ class UploadView(viewsets.ModelViewSet):
 class UrlFilter:
     def __init__(self, options, params):
         self.params = params
-        #self.params.update(options[0])
-        #del options[0]
+        # self.params.update(options[0])
+        # del options[0]
         self.delegator = options[0]['func']
         self.__parse(options)
 
@@ -163,21 +204,21 @@ class UrlFilter:
 class SimulationsHandler(UrlFilter):
     def __init__(self, params):
         options = [
-        {
-            '/': 'default',
-            'func': self.getResults
-        }, {
-            'id': 'default',
-            'func': self.getResult
-        }, {
-            'id': 'default',
-            'var': 'default',
-            'func': self.getResult
-        }, {
-            'option': 'generate',
-            'description': 'default',
-            'func': self.generate
-        }]
+            {
+                '/': 'default',
+                'func': self.getResults
+            }, {
+                'id': 'default',
+                'func': self.getResult
+            }, {
+                'id': 'default',
+                'var': 'default',
+                'func': self.getResult
+            }, {
+                'option': 'generate',
+                'description': 'default',
+                'func': self.generate
+            }]
         super().__init__(options, params)
 
     def getResults(self, callBack):
@@ -204,7 +245,8 @@ class SimulationsHandler(UrlFilter):
         return results
 
     def generate(self, callBack):
-        threadHandler.addTask(SimulationsHandler.simulate, self.params, callBack)
+        threadHandler.addTask(SimulationsHandler.simulate,
+                              self.params, callBack)
         return {"status": "pending"}
 
     @staticmethod
@@ -221,9 +263,11 @@ class SimulationsHandler(UrlFilter):
             if callBack:
                 callBack["clients"][callBack["user"]](json.dumps(status))
             return status
-        result = Result.objects.create(status=False, project=project, description=description, warning='')
+        result = Result.objects.create(
+            status=False, project=project, description=description, warning='')
         BASE_DIR = F"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}/media/{pk}"
-        simulator = Simulator('"D:/Vensim/vendss64.exe"', model[0], runname=F"{BASE_DIR}/{result.id}", handlerFile=F"{BASE_DIR}/{result.id}")
+        simulator = Simulator('"D:/Vensim/vendss64.exe"',
+                              model[0], runname=F"{BASE_DIR}/{result.id}", handlerFile=F"{BASE_DIR}/{result.id}")
         jsonFile = F"{BASE_DIR}/result{result.id}.json"
         Path(jsonFile).write_text(json.dumps(simulator.results))
         try:
@@ -239,11 +283,11 @@ class SimulationsHandler(UrlFilter):
         result.save()
         if callBack:
             callBack["clients"][callBack["user"]](json.dumps({
-                "pk": pk, 
-                'id': result.id, 
-                "status": "success", 
+                "pk": pk,
+                'id': result.id,
+                "status": "success",
                 "message": F"simulation {result.id} complete"
-                }))
+            }))
 
 
 def Get_Warnings(path):
@@ -255,11 +299,12 @@ def Get_Warnings(path):
             return content
     return 'Warning path either does not exists or it\'s a directory'
 
+
 class SimulationsViewset(APIView):
 
     def get(self, request, pk, format=None):
-        #simulationsHandler = SimulationsHandler(pk, request.query_params)
-        #response = simulationsHandler.execute()
+        # simulationsHandler = SimulationsHandler(pk, request.query_params)
+        # response = simulationsHandler.execute()
         params = request.query_params.copy()
         params["pk"] = pk
         response = SimulationsHandler(params).execute()
