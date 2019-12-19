@@ -19,6 +19,7 @@ import json
 import time
 import os
 
+
 class ProjectView(viewsets.ModelViewSet):
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
@@ -134,7 +135,7 @@ class UploadView(viewsets.ModelViewSet):
 class UrlFilter:
     def __init__(self, options, params):
         self.params = params
-        #self.params.update(options[0])
+        # self.params.update(options[0])
         #del options[0]
         self.delegator = options[0]['func']
         self.__parse(options)
@@ -163,21 +164,21 @@ class UrlFilter:
 class SimulationsHandler(UrlFilter):
     def __init__(self, params):
         options = [
-        {
-            '/': 'default',
-            'func': self.getResults
-        }, {
-            'id': 'default',
-            'func': self.getResult
-        }, {
-            'id': 'default',
-            'var': 'default',
-            'func': self.getResult
-        }, {
-            'option': 'generate',
-            'description': 'default',
-            'func': self.generate
-        }]
+            {
+                '/': 'default',
+                'func': self.getResults
+            }, {
+                'id': 'default',
+                'func': self.getResult
+            }, {
+                'id': 'default',
+                'var': 'default',
+                'func': self.getResult
+            }, {
+                'option': 'generate',
+                'description': 'default',
+                'func': self.generate
+            }]
         super().__init__(options, params)
 
     def getResults(self, callBack):
@@ -187,24 +188,32 @@ class SimulationsHandler(UrlFilter):
         return serializer.data
 
     def getResult(self, callBack):
-        queryset = Result.objects.get(
-            project__pk=self.params.get('pk'), pk=self.params.get('id'))
-        if not queryset.status:
-            return ({'status': 'in queue'})
-        data = Path(queryset.path).read_bytes()
-        data = json.loads(data)
-        if not self.params.get('var'):
-            return data
-        for var in self.params.get('var').split(','):
-            if var not in data.keys():
-                return list(data.keys())
-        results = {}
-        for var in self.params.get('var').split(','):
-            results[var] = data[var]
-        return results
+        ids = self.params.get('id').split(',')
+        print(ids)
+        sims = {}
+        for myid in ids:
+            # print(myid)
+            queryset = Result.objects.get(
+                project__pk=self.params.get('pk'), pk=myid)
+            if not queryset.status:
+                return ({'status': 'in queue'})
+            data = Path(queryset.path).read_bytes()
+            data = json.loads(data)
+            if not self.params.get('var'):
+                sims[myid] = data
+            else:
+                for var in self.params.get('var').split(','):
+                    if var not in data.keys():
+                        return list(data.keys())
+                results = {}
+                for var in self.params.get('var').split(','):
+                    results[var] = data[var]
+                sims[myid] = results
+        return sims
 
     def generate(self, callBack):
-        threadHandler.addTask(SimulationsHandler.simulate, self.params, callBack)
+        threadHandler.addTask(SimulationsHandler.simulate,
+                              self.params, callBack)
         return {"status": "pending"}
 
     @staticmethod
@@ -221,9 +230,11 @@ class SimulationsHandler(UrlFilter):
             if callBack:
                 callBack["clients"][callBack["user"]](json.dumps(status))
             return status
-        result = Result.objects.create(status=False, project=project, description=description, warning='')
+        result = Result.objects.create(
+            status=False, project=project, description=description, warning='')
         BASE_DIR = F"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}/media/{pk}"
-        simulator = Simulator('"D:/Vensim/vendss64.exe"', model[0], runname=F"{BASE_DIR}/{result.id}", handlerFile=F"{BASE_DIR}/{result.id}")
+        simulator = Simulator('"D:/Vensim/vendss64.exe"',
+                              model[0], runname=F"{BASE_DIR}/{result.id}", handlerFile=F"{BASE_DIR}/{result.id}")
         jsonFile = F"{BASE_DIR}/result{result.id}.json"
         Path(jsonFile).write_text(json.dumps(simulator.results))
         try:
@@ -239,11 +250,11 @@ class SimulationsHandler(UrlFilter):
         result.save()
         if callBack:
             callBack["clients"][callBack["user"]](json.dumps({
-                "pk": pk, 
-                'id': result.id, 
-                "status": "success", 
+                "pk": pk,
+                'id': result.id,
+                "status": "success",
                 "message": F"simulation {result.id} complete"
-                }))
+            }))
 
 
 def Get_Warnings(path):
@@ -254,6 +265,7 @@ def Get_Warnings(path):
             content_file.truncate(0)
             return content
     return 'Warning path either does not exists or it\'s a directory'
+
 
 class SimulationsViewset(APIView):
 
