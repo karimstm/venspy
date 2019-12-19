@@ -18,6 +18,7 @@ import ntpath
 import json
 import time
 import os
+from coreapi.parseTop.parseMonkey import result_to_json, parser_mdl_top, get_data, put_data
 
 
 class ProjectView(viewsets.ModelViewSet):
@@ -34,6 +35,33 @@ class ModelsView(generics.RetrieveAPIView):
         files = Upload.objects.filter(project=project)
         serializer = FileSerializer(files, many=True)
         return Response(serializer.data)
+
+
+class MdlTopJsonView(generics.RetrieveAPIView):
+    serializer_class = FileSerializer
+    queryset = Upload.objects.all()
+
+    def get(self, request, pk):
+        with open('./media/' + str(pk) + '/mdl_parsed_top.json', 'r') as file:
+            data = file.read()
+        json_obj = json.loads(data)
+        if 'name' in request.data:
+            obj = []
+            name = request.data['name']
+            if isinstance(name, list):
+                for ob_js in json_obj:
+                    for re in name:
+                        if ob_js['name'] == re:
+                            obj.append(ob_js)
+            elif isinstance(name, str):
+                for ob_js in json_obj:
+                    if ob_js['name'] == name:
+                        return Response(data=ob_js)
+            else:
+                return Reponse(data={"msg": "wrong data type"})
+            return Response(data=obj)
+        else:
+            return Response(data=json.loads(data))
 
 
 class TypeUploadView(viewsets.ModelViewSet):
@@ -96,6 +124,12 @@ class UploadView(viewsets.ModelViewSet):
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             self.handle_upload_file(request.data['file'], path)
+            filename, file_extension = os.path.splitext(path)
+            if file_extension[1:].lower() == 'mdl':
+                absolute_path = os.path.dirname(os.path.abspath(path))
+                json_format = result_to_json(
+                    parser_mdl_top(data=get_data(path)))
+                put_data(absolute_path, json_format)
             self.perform_create(serializer, BASE_DIR, path2)
             headers = self.get_success_headers(serializer.data)
             return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
@@ -106,6 +140,12 @@ class UploadView(viewsets.ModelViewSet):
             file_instance.file = BASE_DIR + path2
             file_instance.name = ntpath.basename(request.data['file'].name)
             file_instance.typefile = typefile_instance
+            filename, file_extension = os.path.splitext(path)
+            if file_extension[1:].lower() == 'mdl':
+                absolute_path = os.path.dirname(os.path.abspath(path))
+                json_format = result_to_json(
+                    parser_mdl_top(data=get_data(path)))
+                put_data(absolute_path, json_format)
             file_instance.save()
             return Response(data={"msg": "File Updated"}, status=status.HTTP_201_CREATED)
 
