@@ -1,3 +1,7 @@
+from .serializers import (FileSerializer, ProjectSerializer, SettingSerializer,
+                           EntitySerializer, ResultSerializer, TypeUploadSerializer)
+from .models import Upload, Project, Result, Upload, TypeUpload, Settings, Entity
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.parsers import FileUploadParser
 from rest_framework.response import Response
 from rest_framework import status, viewsets
@@ -12,7 +16,7 @@ from .static import threadHandler
 from .Simulator import Simulator
 from datetime import datetime
 from pathlib import Path
-# import win32com.client
+#import win32com.client
 import getpass
 import ntpath
 import json
@@ -21,6 +25,11 @@ import os
 from coreapi.parseTop.parseMonkey import result_to_json, parser_mdl_top, get_data, put_data
 import pandas as pd
 
+
+
+class EntityView(viewsets.ModelViewSet):
+    queryset = Entity.objects.all()
+    serializer_class = EntitySerializer
 
 class ProjectView(viewsets.ModelViewSet):
 	queryset = Project.objects.all()
