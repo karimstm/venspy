@@ -1,5 +1,5 @@
 from pathlib import Path
-#import win32com.client
+import win32com.client
 from threading import Timer
 import subprocess
 import psutil
@@ -11,15 +11,15 @@ class Simulator():
 
     def __init__(self, vensim, model, runname="run", handlerFile="vinsimHandler"):
         self.__script = F"""
-                            :SCREEN Simulator
-                            COMMAND,"",0,0,0,0,,,SPECIAL>NOINTERACTION|0
-                            COMMAND,"",0,0,0,0,,,SPECIAL>LOADMODEL|{model}
-                            COMMAND,"",0,0,0,0,,,SIMULATE>RUNNAME|{runname}
-                            COMMAND,"",0,0,0,0,,,MENU>RUN|O
-                            COMMAND,"",0,0,0,0,,,MENU>VDF2DAT|{runname}.vdf|{runname}.dat
-                            COMMAND,"",0,0,0,0,,,SPECIAL>EXIT1
-                            COMMAND,"",0,0,0,0,,,MENU>EXIT
-                            """
+:SCREEN Simulator
+COMMAND,"",0,0,0,0,,,SPECIAL>NOINTERACTION|0
+COMMAND,"",0,0,0,0,,,SPECIAL>LOADMODEL|{model}
+COMMAND,"",0,0,0,0,,,SIMULATE>RUNNAME|{runname}
+COMMAND,"",0,0,0,0,,,MENU>RUN|O
+COMMAND,"",0,0,0,0,,,MENU>VDF2DAT|{runname}.vdf|{runname}.dat
+COMMAND,"",0,0,0,0,,,SPECIAL>EXIT1
+COMMAND,"",0,0,0,0,,,MENU>EXIT
+"""
         self.vensim = vensim
         self.runname = runname
         self.handlerFile = handlerFile
