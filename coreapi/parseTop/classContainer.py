@@ -8,9 +8,11 @@ class Variables:
         if name.find(':') != -1:
             index = name.find(':')
         if len(name) != 0 and name[0].isalpha():
-            name = name[:index].strip()
+            name = name[:index].strip().encode('ISO-8859-1').decode('utf-8')
+            # name = name.encode('ISO-8859-1').decode('utf-8')
         else:
             name = None
+        # print("name 2 = ", name)
         self.name = name
         if len(data) > 1:
             if str(data[1]).find('[') != -1:

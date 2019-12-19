@@ -237,7 +237,7 @@ class SimulationsHandler(UrlFilter):
 		mdltopparse = json.loads(mdltopparse)
 		mdltopparse = pd.DataFrame(mdltopparse)
 		mdlunits = mdltopparse.loc[mdltopparse['name'] == 'Stock ACP54 Cl']
-		print(mdltopparse.loc[mdltopparse['name'] == 'Stock ACP54 Cl']['name'].values[0])
+		# print(mdltopparse.loc[mdltopparse['name'] == 'Stock ACP54 Cl']['name'].values[0])
 		for myid in ids:
 			# print(myid)
 			queryset = Result.objects.get(
@@ -256,10 +256,10 @@ class SimulationsHandler(UrlFilter):
 				for var in self.params.get('var').split(','):
 					print(data[var])
 					results[var] = data[var]
-					try:
-						results['unit ' + var]=mdltopparse.loc[mdltopparse['name'] == 'ACS consommÃ©']['unit'].values[0]
-					except:
-						results['unit ' + var]='none'
+					# try:
+					# 	results['unit ' + var]=mdltopparse.loc[mdltopparse['name'] == var]['unit'].values[0]
+					# except:
+					# 	results['unit ' + var]='none'
 				sims[myid] = results
 		return sims
 

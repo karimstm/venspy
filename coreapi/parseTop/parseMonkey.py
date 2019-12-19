@@ -45,5 +45,6 @@ def parser_mdl_top(data):
 
     for t in tab:
         if t.name:
+            # print('name = ',t.name)
             tab_purified.append(t)
     return tab_purified
