@@ -43,6 +43,7 @@ class Upload(models.Model):
 class Result(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+    title = models.CharField(max_length=100)
     path = models.CharField(max_length=100, null=True, blank=True)
     dateCreation = models.DateTimeField(auto_now=True)
     status = models.BooleanField(default=False)
