@@ -17,5 +17,6 @@ urlpatterns = [
     path('project/<int:pk>/models', views.ModelsView.as_view()),
     path('simulations/<int:pk>/', views.SimulationsViewset.as_view()),
     path('settings/', views.SettingsView.as_view()),
-    path('units/<int:pk>/', views.MdlTopJsonView.as_view())
+    path('units/<int:pk>/', views.MdlTopJsonView.as_view()),
+    path('getwarning/<int:pk>/<int:rpk>/', views.getWarningView.as_view())
 ]

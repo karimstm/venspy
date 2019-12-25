@@ -1,5 +1,5 @@
 from .serializers import (FileSerializer, ProjectSerializer, SettingSerializer,
-                           EntitySerializer, ResultSerializer, TypeUploadSerializer)
+						  EntitySerializer, ResultSerializer, TypeUploadSerializer)
 from .models import Upload, Project, Result, Upload, TypeUpload, Settings, Entity
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.parsers import FileUploadParser
@@ -11,6 +11,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 # from rest_framework import filters
 from .serializers import FileSerializer, ProjectSerializer, SettingSerializer, ResultSerializer, TypeUploadSerializer
 from .models import Project, Result, Upload, TypeUpload, Settings
+from django.contrib.auth.models import User
 # from .SocketHandler import clients
 from .static import threadHandler
 from .Simulator import Simulator
@@ -24,12 +25,13 @@ import json
 import os
 from coreapi.parseTop.parseMonkey import result_to_json, parser_mdl_top, get_data, put_data
 import pandas as pd
-
+from coreapi.warnings.parseWarns import warning_to_json, warningDecode_string, save_warnings
 
 
 class EntityView(viewsets.ModelViewSet):
-    queryset = Entity.objects.all()
-    serializer_class = EntitySerializer
+	queryset = Entity.objects.all()
+	serializer_class = EntitySerializer
+
 
 class ProjectView(viewsets.ModelViewSet):
 	queryset = Project.objects.all()
@@ -122,7 +124,7 @@ class UploadView(viewsets.ModelViewSet):
 	def create(self, request, *args, **kwargs):
 		BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 		path, path2 = self.path_maker(request)
-		print(request.data)
+		# print(request.data)
 		try:
 			project_instance = Project.objects.get(id=request.data['project'])
 			typefile_instance = TypeUpload.objects.get(
@@ -244,8 +246,9 @@ class SimulationsHandler(UrlFilter):
 		mdltopparse = Path(
 			'./media/' + str(self.params.get('pk')) + '/mdl_parsed_top.json').read_bytes()
 		mdltopparse = json.loads(mdltopparse)
+		# print(mdltopparse)
 		mdltopparse = pd.DataFrame(mdltopparse)
-		mdlunits = mdltopparse.loc[mdltopparse['name'] == 'Stock ACP54 Cl']
+		# mdlunits = mdltopparse.loc[mdltopparse['name'] == 'Stock ACP54 Cl']
 		# print(mdltopparse.loc[mdltopparse['name'] == 'Stock ACP54 Cl']['name'].values[0])
 		for myid in ids:
 			# print(myid)
@@ -256,6 +259,23 @@ class SimulationsHandler(UrlFilter):
 			data = Path(queryset.path).read_bytes()
 			data = json.loads(data)
 			if not self.params.get('var'):
+				# results = {}
+				# for var in data:
+				# 	results[var] = data[var]
+				# 	found = mdltopparse.loc[mdltopparse['name'] == var]
+				# 	if not found.empty:
+				# 		results['unit ' + var]=found['unit'].values[0]
+				# 		results['range ' + var]=found['range'].values[0]
+					# if found:
+					# 	print("yes")
+					# results['unit ' + var]=mdltopparse.loc[mdltopparse['name'] == var]['unit'].values[0]
+					# results['range ' + var]=mdltopparse.loc[mdltopparse['name'] == var]['range'].values[0]
+					# try:
+					# 	results['unit ' + var]=mdltopparse.loc[mdltopparse['name'] == var]['unit'].values[0]
+					# 	results['range ' + var]=mdltopparse.loc[mdltopparse['name'] == var]['range'].values[0]
+					# except:
+					# 	results['unit ' + var]='none'
+					# 	results['range ' + var]='none'
 				sims[myid] = data
 			else:
 				for var in self.params.get('var').split(','):
@@ -263,12 +283,14 @@ class SimulationsHandler(UrlFilter):
 						return list(data.keys())
 				results = {}
 				for var in self.params.get('var').split(','):
-					print(data[var])
+					# print(data[var])
 					results[var] = data[var]
 					# try:
 					# 	results['unit ' + var]=mdltopparse.loc[mdltopparse['name'] == var]['unit'].values[0]
+					# 	results['range ' + var]=mdltopparse.loc[mdltopparse['name'] == var]['range'].values[0]
 					# except:
 					# 	results['unit ' + var]='none'
+					# 	results['range ' + var]='none'
 				sims[myid] = results
 		return sims
 
@@ -292,10 +314,11 @@ class SimulationsHandler(UrlFilter):
 				callBack["clients"][callBack["user"]](json.dumps(status))
 			return status
 		result = Result.objects.create(
-			status=False, project=project, description=description, warning='')
+			status=False, project=project, description=description, title='sad', warning='',
+			user=User.objects.get(pk=params.get('iduser')))
 		BASE_DIR = F"{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}/media/{pk}"
 		simulator = Simulator('"D:/Vensim/vendss64.exe"',
-							  model[0], runname=F"{BASE_DIR}/{result.id}", handlerFile=F"{BASE_DIR}/{result.id}")
+							  model[0], pk, runname=F"{BASE_DIR}/{result.id}", handlerFile=F"{BASE_DIR}/{result.id}")
 		jsonFile = F"{BASE_DIR}/result{result.id}.json"
 		Path(jsonFile).write_text(json.dumps(simulator.results))
 		try:
@@ -308,7 +331,10 @@ class SimulationsHandler(UrlFilter):
 		result.path = jsonFile
 		result.status = True
 		result.warning = warning
+		Result.title = 'said'
 		result.save()
+		save_warnings('./media/' + str(pk),
+					  warning_to_json(warningDecode_string(warning)), result.id)
 		if callBack:
 			callBack["clients"][callBack["user"]](json.dumps({
 				"pk": pk,
@@ -342,3 +368,21 @@ class SimulationsViewset(APIView):
 class SettingsView(generics.ListCreateAPIView):
 	serializer_class = SettingSerializer
 	queryset = Settings.objects.all()
+
+
+class getWarningView(APIView):
+	def get(self, request, pk, rpk, format=None):
+		allWarnings = Path(
+			'./media/' + str(pk) + F"/all_warnings{rpk}.json").read_bytes()
+		allWarnings = json.loads(allWarnings)
+		keys = allWarnings.keys()
+		# allWarnings = pd.DataFrame(allWarnings)
+		# found = allWarnings.loc[allWarnings['name'] == "lol"]
+		# if (not found.empty):
+		# 	return Response("makayanch")
+		# if ("Acide borique consomm\u00e9 5" in keys):
+		# 	return Response("s")
+		if "var" in request.query_params:
+			if request.query_params["var"] in keys:
+				return Response(allWarnings[request.query_params["var"]])
+		return Response(['No Data'])

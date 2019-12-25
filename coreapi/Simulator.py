@@ -5,11 +5,11 @@ import subprocess
 import psutil
 import json
 import os
-
+import pandas as pd
 
 class Simulator():
 
-    def __init__(self, vensim, model, runname="run", handlerFile="vinsimHandler"):
+    def __init__(self, vensim, model, projectid, runname="run", handlerFile="vinsimHandler"):
         self.__script = F"""
 :SCREEN Simulator
 COMMAND,"",0,0,0,0,,,SPECIAL>NOINTERACTION|0
@@ -23,6 +23,7 @@ COMMAND,"",0,0,0,0,,,MENU>EXIT
         self.vensim = vensim
         self.runname = runname
         self.handlerFile = handlerFile
+        self.projectid = projectid
         self.execute()
         self.dat2json()
         self.clear()
@@ -32,6 +33,10 @@ COMMAND,"",0,0,0,0,,,MENU>EXIT
         lines = data.split("\n")
         self.results = {}
         current = None
+        mdltopparse = Path(
+			'./media/' + str(self.projectid) + '/mdl_parsed_top.json').read_bytes()
+        mdltopparse = json.loads(mdltopparse)
+        mdltopparse = pd.DataFrame(mdltopparse)
         for line in lines:
             if not line:
                 continue
@@ -39,6 +44,11 @@ COMMAND,"",0,0,0,0,,,MENU>EXIT
             if len(keyVal) is not 2:
                 current = line.encode('ISO-8859-1').decode('utf-8')
                 self.results[current] = {}
+                # self.results["unit " + current] = 'lol'
+                found = mdltopparse.loc[mdltopparse['name'] == current]
+                if not found.empty:
+                    self.results['__unit__ ' + current]=found['unit'].values[0]
+                    self.results['__range__ ' + current]=found['range'].values[0]
             elif len(keyVal) is 2:
                 self.results[current][keyVal[0]] = float(keyVal[1])
 
